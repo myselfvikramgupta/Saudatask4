@@ -1,17 +1,62 @@
+import React, { useState } from "react";
+import XLSX from "xlsx";
+import FileUploader from "./fileUploader";
+import Table from "./tableData";
+import Title from "./title";
+import "./App.css";
 
-import './App.css';
-
+const extensions = ["xlsx", "xls", "csv"];
 function App() {
+  const [data, setData] = useState([]);
+  const [columns, setColumns] = useState([]);
+  const importExcelFile = (e) => {
+    const excelFile = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target.result;
+      const workBook = XLSX.read(result, { type: "binary" });
+      const workSheetName = workBook.SheetNames[0];
+      const workSheet = workBook.Sheets[workSheetName];
+      const fileData = XLSX.utils.sheet_to_json(workSheet, { header: 1 });
+      let headers = fileData[0].map((head) => head.trim().replace(" ", "_"));
+      const heads = fileData[0].map((head) => ({ title: head }));
+      setColumns(heads);
+      fileData.splice(0, 1);
+      setData(convertDataToJson(headers, fileData));
+    };
+    if (excelFile) {
+      const fileType = checkFileType(excelFile);
+      if (fileType) {
+        reader.readAsBinaryString(excelFile);
+      } else {
+        alert("Invalid file input, Select Excel, CSV file");
+      }
+    } else {
+      alert("Choose excel file...");
+    }
+  };
+  const checkFileType = (file) => {
+    const fileName = file.name.split(".");
+    const extension = fileName[fileName.length - 1];
+    return extensions.includes(extension);
+  };
+  const convertDataToJson = (headers, data) => {
+    const rows = [];
+    data.forEach((row) => {
+      let rowData = {};
+      row.forEach((element, index) => {
+        //   console.log(headers);
+        rowData[headers[index]] = element;
+      });
+      rows.push(rowData);
+    });
+    return rows;
+  };
+
   return (
-    <div className="container">
-      <div className="file_uploader" >
-        <div className="file">
-        <label>
-          <input type="file" />
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M17 6h-6v-1h6v1zm0 2h-6v1h6v-1zm0 3h-6v1h6v-1zm5-11v14.386c0 2.391-6.648 9.614-9.811 9.614h-10.189v-24h20zm-16 18c0-.552-.447-1-1-1s-1 .448-1 1 .447 1 1 1 1-.448 1-1zm0-12c0-.552-.447-1-1-1s-1 .448-1 1 .447 1 1 1 1-.448 1-1zm14-4h-12v20h3.362c4.156 0 2.638-6 2.638-6s6 1.65 6-2.457v-11.543z"/></svg>
-          </label>
-        </div>
-      </div>
+    <div className="container-fluid">
+      <FileUploader handleFile={importExcelFile} />
+      {data.length > 0 ? <Table data={data} columns={columns} /> : <Title />}
     </div>
   );
 }
